@@ -53,7 +53,7 @@ const withNetworkConnectivity = (
       // On Android the listener does not fire on startup
       if (Platform.OS === 'android') {
         NetInfo.isConnected.fetch().then((isConnected: boolean) => {
-          this.checkInternet(isConnected);
+          this.checkInternet();
         });
       }
 
@@ -121,6 +121,7 @@ const withNetworkConnectivity = (
         <WrappedComponent
           {...this.props}
           isConnected={!withRedux ? this.state.isConnected : undefined}
+          checkInternet={!withRedux ? this.checkInternet : undefined}
         />
       );
     }
