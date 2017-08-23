@@ -22,6 +22,7 @@ const withNetworkConnectivity = (
     withRedux = false,
     timeout = 3000,
     pingServerUrl = 'https://google.com',
+    checkConnectionInterval = 0,
   }: Arguments = {},
 ) => (WrappedComponent: ReactClass<*>) => {
   if (typeof withRedux !== 'boolean') {
@@ -51,19 +52,36 @@ const withNetworkConnectivity = (
       NetInfo.isConnected.addEventListener('change', this.checkInternet);
       // On Android the listener does not fire on startup
       if (Platform.OS === 'android') {
-        NetInfo.isConnected
-          .fetch()
-          .then((isConnected: boolean) => this.checkInternet(isConnected));
+        NetInfo.isConnected.fetch().then((isConnected: boolean) => {
+          this.checkInternet(isConnected);
+        });
       }
+
+      this.setupConnectivityCheckInterval();
     }
 
     componentWillUnmount() {
       NetInfo.isConnected.removeEventListener('change', this.checkInternet);
+      this.clearInterval();
     }
 
-    checkInternet = (isConnected: boolean) => {
+    setupConnectivityCheckInterval = () => {
+      if (checkConnectionInterval && !this.interval) {
+        this.interval = setInterval(
+          this.checkInternet,
+          checkConnectionInterval,
+        );
+      }
+    };
+
+    clearInterval = () => {
+      if (this.interval) {
+        clearInterval(this.interval);
+      }
+    };
+
+    checkInternet = () => {
       checkInternetAccess(
-        isConnected,
         timeout,
         pingServerUrl,
       ).then((hasInternetAccess: boolean) => {
@@ -74,6 +92,7 @@ const withNetworkConnectivity = (
     handleConnectivityChange = (isConnected: boolean) => {
       const { store } = this.context;
       reactConnectionStore.setConnection(isConnected);
+
       // Top most component, syncing with store
       if (
         typeof store === 'object' &&
@@ -81,7 +100,10 @@ const withNetworkConnectivity = (
         withRedux === true
       ) {
         const actionQueue = store.getState().network.actionQueue;
-        store.dispatch(connectionChange(isConnected));
+
+        if (isConnected !== store.getState().network.isConnected) {
+          store.dispatch(connectionChange(isConnected));
+        }
         // dispatching queued actions in order of arrival (if we have any)
         if (isConnected && actionQueue.length > 0) {
           actionQueue.forEach((action: *) => {
