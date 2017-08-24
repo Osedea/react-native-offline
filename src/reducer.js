@@ -11,6 +11,7 @@ import type {
 
 export const initialState = {
   isConnected: true,
+  hasNetworkAccess: true,
   actionQueue: [],
 };
 
@@ -88,6 +89,11 @@ export default function(
       return {
         ...state,
         isConnected: action.payload,
+      };
+    case actionTypes.NETWORK_ACCESS_CHANGE:
+      return {
+        ...state,
+        hasNetworkAccess: action.payload,
       };
     case actionTypes.FETCH_OFFLINE_MODE:
       return handleOfflineAction(state, action);

@@ -15,6 +15,11 @@ export const connectionChange = (isConnected: boolean): FluxAction => ({
   payload: isConnected,
 });
 
+export const networkAccessChange = (hasNetworkAccess: boolean): FluxAction => ({
+  type: actionTypes.NETWORK_ACCESS_CHANGE,
+  payload: isConnected,
+})
+
 export const fetchOfflineMode = (
   action: EnqueuedAction,
 ): FluxActionWithPreviousIntent => {

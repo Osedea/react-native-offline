@@ -3,7 +3,7 @@
 import React, { Component, PropTypes } from 'react';
 import { NetInfo, Platform } from 'react-native';
 import hoistStatics from 'hoist-non-react-statics';
-import { connectionChange } from './actionCreators';
+import { connectionChange, networkAccessChange } from './actionCreators';
 import reactConnectionStore from './reactConnectionStore';
 import checkInternetAccess from './checkInternetAccess';
 
@@ -15,6 +15,7 @@ type Arguments = {
 
 type State = {
   isConnected: boolean,
+  hasNetworkAccess: boolean,
 };
 
 const withNetworkConnectivity = (
@@ -46,22 +47,27 @@ const withNetworkConnectivity = (
 
     state = {
       isConnected: reactConnectionStore.getConnection(),
+      hasNetworkAccess: reactConnectionStore.getNetworkAccess(),
     };
 
     componentDidMount() {
-      NetInfo.isConnected.addEventListener('change', this.checkInternet);
+      NetInfo.isConnected.addEventListener(
+        'change',
+        this.handleNetworkAccessChange,
+      );
       // On Android the listener does not fire on startup
       if (Platform.OS === 'android') {
-        NetInfo.isConnected.fetch().then((isConnected: boolean) => {
-          this.checkInternet();
-        });
+        NetInfo.isConnected.fetch().then(this.handleNetworkAccessChange);
       }
 
       this.setupConnectivityCheckInterval();
     }
 
     componentWillUnmount() {
-      NetInfo.isConnected.removeEventListener('change', this.checkInternet);
+      NetInfo.isConnected.removeEventListener(
+        'change',
+        this.handleNetworkAccessChange,
+      );
       this.clearInterval();
     }
 
@@ -87,6 +93,28 @@ const withNetworkConnectivity = (
       ).then((hasInternetAccess: boolean) => {
         this.handleConnectivityChange(hasInternetAccess);
       });
+    };
+
+    handleNetworkAccessChange = (hasNetworkAccess: boolean) => {
+      reactConnectionStore.setNetworkAccess(hasNetworkAccess);
+
+      // Top most component, syncing with store
+      if (
+        typeof store === 'object' &&
+        typeof store.dispatch === 'function' &&
+        withRedux === true
+      ) {
+        if (hasNetworkAccess !== store.getState().network.hasNetworkAccess) {
+          store.dispatch(networkAccessChange(hasNetworkAccess));
+        }
+      } else {
+        // Standard HOC, passing connectivity as props
+        this.setState({ hasNetworkAccess });
+      }
+      // Only check connectivity if we do have network access
+      if (hasNetworkAccess) {
+        this.checkInternet(reactConnectionStore.getConnection());
+      }
     };
 
     handleConnectivityChange = (isConnected: boolean) => {
@@ -121,7 +149,7 @@ const withNetworkConnectivity = (
         <WrappedComponent
           {...this.props}
           isConnected={!withRedux ? this.state.isConnected : undefined}
-          checkInternet={!withRedux ? this.checkInternet : undefined}
+          hasNetworkAccess={!withRedux ? this.state.hasNetworkAccess : undefined}
         />
       );
     }
